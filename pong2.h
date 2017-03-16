@@ -2,6 +2,10 @@
 #include <SDL_image.h>
 #include <iostream>
 
+#ifndef PONG2_H    // To make sure you don't declare the function more than once by including the header multiple times.
+#define PONG2_H
+
+
 /*void exitProgram()
 {
 std::cout << "Kilépéshez nyomj meg egy billentyût..." << std::endl;
@@ -12,6 +16,7 @@ struct ball {
 	SDL_Rect Ball;
 	int velocityX = 5;
 	int velocityY = 5;
+	bool launch = false;
 };
 
 struct player {
@@ -25,8 +30,8 @@ struct player {
 
 bool move[4] = { 0,0,0,0 };
 
-const int SCREEN_WIDTH = 1024;
-const int SCREEN_HEIGHT = 768;
+const int SCREEN_WIDTH = 640;
+const int SCREEN_HEIGHT = 480;
 
 SDL_Window*     window;                 // holds window properties
 SDL_Renderer*   renderer;               // holds rendering surface properties
@@ -38,7 +43,7 @@ ball labda;
 
 bool needQuit = false;
 
-void initialize(player *p1, player *p2,ball *labda) {
+void initialize(player *p1, player *p2, ball *labda) {
 
 	// Initialize SDL
 	SDL_Init(SDL_INIT_EVERYTHING);
@@ -106,61 +111,62 @@ void destroyer() {
 	SDL_Quit();
 }
 
-void handleEvents( SDL_Event *ev) {
-	
-		while (SDL_PollEvent(ev))
+void handleEvents(SDL_Event *ev,ball *labda) {
+
+	while (SDL_PollEvent(ev))
+	{
+		switch (ev->type)
 		{
-			switch (ev->type)
+		case SDL_QUIT:
+			needQuit = true;
+			break;
+		case SDL_KEYDOWN:
+			switch (ev->key.keysym.sym)
 			{
-			case SDL_QUIT:
-				needQuit = true;
+			case SDLK_UP:
+				move[0] = 1;
+				break;
+			case SDLK_DOWN:
+				move[1] = 1;
+				break;
+			case SDLK_w:
+				move[2] = 1;
+				break;
+			case SDLK_s:
+				move[3] = 1;
 				break;
 			case SDLK_SPACE:
-				break;
-			case SDL_KEYDOWN:
-				switch (ev->key.keysym.sym)
-				{
-				case SDLK_UP:
-					move[0] = 1;
-					break;
-				case SDLK_DOWN:
-					move[1] = 1;
-					break;
-				case SDLK_w:
-					move[2] = 1;
-					break;
-				case SDLK_s:
-					move[3] = 1;
-					break;
-				}
-				break;
-			case SDL_KEYUP:
-				switch (ev->key.keysym.sym)
-				{
-				case SDLK_UP:
-					move[0] = 0;
-					break;
-				case SDLK_DOWN:
-					move[1] = 0;
-					break;
-				case SDLK_w:
-					move[2] = 0;
-					break;
-				case SDLK_s:
-					move[3] = 0;
-					break;
-				}
-				break;
-			case SDL_MOUSEMOTION:
-				break;
-			case SDL_MOUSEBUTTONUP:
+				labda->launch = true;
 				break;
 			}
+			break;
+		case SDL_KEYUP:
+			switch (ev->key.keysym.sym)
+			{
+			case SDLK_UP:
+				move[0] = 0;
+				break;
+			case SDLK_DOWN:
+				move[1] = 0;
+				break;
+			case SDLK_w:
+				move[2] = 0;
+				break;
+			case SDLK_s:
+				move[3] = 0;
+				break;
+			}
+			break;
+		case SDL_MOUSEMOTION:
+			break;
+		case SDL_MOUSEBUTTONUP:
+			break;
 		}
+	}
 
 }
 
-void update(bool move[],player *p1,player *p2,ball *labda) {
+void update(bool move[], player *p1, player *p2, ball *labda) {
 
 	int fetch = 5;
 
@@ -183,20 +189,22 @@ void update(bool move[],player *p1,player *p2,ball *labda) {
 
 	//labda mozgatása
 
-	labda->Ball.y += labda->velocityY;
-	labda->Ball.x += labda->velocityX;
+			
 
 	// labda utközés érzékelés;
 	if (labda->Ball.y + labda->Ball.h >= SCREEN_HEIGHT)
 	{
-		 labda->velocityY *= (-1);
+		labda->velocityY *= (-1);
 	}
 
 	if (labda->Ball.y + labda->Ball.h <= 0)
 	{
-		 labda->velocityY *= (-1);
+		labda->velocityY *= (-1);
 	}
-
+	if (!labda->launch)
+	{
+		restart(p1, p2, labda);
+	}
 	//paddle ütkőzés beta
 	if ((p1->player_paddle.x + p1->player_paddle.w) <= (labda->Ball.x + labda->Ball.w) && p1->player_paddle.y <= (labda->Ball.y + labda->Ball.h) && (p1->player_paddle.y + p1->player_paddle.h) >= (labda->Ball.y + labda->Ball.h))
 	{
@@ -208,20 +216,27 @@ void update(bool move[],player *p1,player *p2,ball *labda) {
 	}
 	if (labda->Ball.x < 0)
 	{
-		restart(p1,p2,labda);
-
+		restart(p1, p2, labda);
+		labda->launch = false;
 	}
 	if (labda->Ball.x > SCREEN_WIDTH)
 	{
-		restart(p1,p2, labda);
+		restart(p1, p2, labda);
+		labda->launch = false;
+
+	}
+	if (labda->launch)
+	{
+		labda->Ball.y += labda->velocityY;
+		labda->Ball.x += labda->velocityX;
 	}
 
 
 
 }
 
-void render(player *p1,player *p2,ball *labda) {
-	
+void render(player *p1, player *p2, ball *labda) {
+
 	/*
 	//ezen még dolgozom
 	bool *launchball;
@@ -229,11 +244,11 @@ void render(player *p1,player *p2,ball *labda) {
 	launchball = &launch;
 	*/
 	//háttér
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);        
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderClear(renderer);
 	// közép vonal
 	SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-	SDL_Rect midline = { SCREEN_WIDTH/2 , 0 , 1 , SCREEN_HEIGHT };
+	SDL_Rect midline = { SCREEN_WIDTH / 2 , 0 , 1 , SCREEN_HEIGHT };
 	SDL_RenderFillRect(renderer, &midline);
 
 	//ball paddle
@@ -245,34 +260,37 @@ void render(player *p1,player *p2,ball *labda) {
 	SDL_Rect player2 = { p2->player_paddle.x , p2->player_paddle.y ,p2->player_paddle.w ,p2->player_paddle.h };
 	SDL_RenderFillRect(renderer, &player2);
 	//labda
+			
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_Rect labda1 = { labda->Ball.x,labda->Ball.y,labda->Ball.w,labda->Ball.h };
 	SDL_RenderFillRect(renderer, &labda1);
+
 
 	//swap buffer
 	SDL_RenderPresent(renderer);
 }
 
-void gameLoop(SDL_Event *ev,player p1,player p2,ball labda) {
+void gameLoop(SDL_Event *ev, player p1, player p2, ball labda) {
 
 	while (!needQuit) {
-		
 
-		handleEvents(ev);
-		update(move,&p1,&p2,&labda);
-		render(&p1,&p2,&labda);
+
+		handleEvents(ev, &labda);
+		update(move, &p1, &p2, &labda);
+		render(&p1, &p2, &labda);
 	}
 
 	destroyer();
 }
 
-
-int main(int argc, char* args[])
+void start()
 {
 	SDL_Event ev;
 
-	initialize(&p1,&p2,&labda);
-	gameLoop(&ev,p1,p2,labda);
+	initialize(&p1, &p2, &labda);
+	gameLoop(&ev, p1, p2, labda);
 
-	return 0;
 }
+
+
+#endif
